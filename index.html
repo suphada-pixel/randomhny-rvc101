@@ -32,8 +32,8 @@
   <div id="app" class="h-full w-full overflow-auto"></div>
   <script>
     const defaultConfig = {
-      page_title: "วงล้อสุ่มรางวัล อภิมหายิ่งใหญ่สุดอลังการ สำหรับบุคลากร วอศ.101",
-      spin_button_text: "หมุนวงล้อสิจ๊ะ",
+      page_title: "วงล้อสุ่มรางวัล",
+      spin_button_text: "หมุนว���ล��อ",
       winner_label: "ผู้โชคดี",
       import_button_text: "นำเข้าไฟล์ Excel",
       background_color: "#1e293b",
@@ -51,6 +51,7 @@
     let isSpinning = false;
     let currentRotation = 0;
     let winner = "";
+    let isSoundEnabled = true;
 
     function render(config) {
       const customFont = config.font_family || defaultConfig.font_family;
@@ -72,10 +73,10 @@
       app.style.color = textColor;
       
       app.innerHTML = `
-        <div class="min-h-full flex flex-col items-center justify-center p-8">
+        <div class="min-h-full flex flex-col items-center p-8">
           <h1 id="pageTitle" style="font-size: ${baseSize * 2}px; font-family: ${customFont}, ${baseFontStack}; color: ${textColor};" class="font-bold mb-8 text-center">${pageTitle}</h1>
           
-          <div class="mb-8 flex gap-4 items-center">
+          <div class="mb-8 flex gap-4 items-center flex-wrap justify-center">
             <input type="file" id="fileInput" accept=".xls,.xlsx" class="hidden">
             <button id="importBtn" style="background-color: ${buttonColor}; font-size: ${baseSize}px; font-family: ${customFont}, ${baseFontStack};" class="px-6 py-3 rounded-lg font-semibold transition-all hover:opacity-90 shadow-lg">
               📁 ${importButtonText}
@@ -83,29 +84,60 @@
             <button id="resetBtn" style="background-color: #ef4444; font-size: ${baseSize}px; font-family: ${customFont}, ${baseFontStack}; color: ${textColor};" class="px-6 py-3 rounded-lg font-semibold transition-all hover:opacity-90 shadow-lg">
               🔄 รีเซต
             </button>
+            <button id="soundToggle" style="background-color: ${buttonColor}; font-size: ${baseSize}px; font-family: ${customFont}, ${baseFontStack};" class="px-6 py-3 rounded-lg font-semibold transition-all hover:opacity-90 shadow-lg">
+              🔊 เปิดเสียง
+            </button>
           </div>
           <div id="fileStatus" style="font-size: ${baseSize * 0.875}px; font-family: ${customFont}, ${baseFontStack}; color: ${textColor};" class="mb-4 text-center"></div>
 
-          <div class="relative mb-8">
-            <div class="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
-              <div style="border-left: 20px solid transparent; border-right: 20px solid transparent; border-top: 30px solid ${textColor};"></div>
+          <div class="w-full max-w-6xl flex flex-wrap gap-8 justify-center items-start mb-8">
+            <!-- รายการชื่อ -->
+            <div class="flex-shrink-0" style="width: 300px;">
+              <div style="background-color: rgba(255,255,255,0.1); font-family: ${customFont}, ${baseFontStack}; color: ${textColor};" class="rounded-2xl p-6 shadow-xl">
+                <h2 style="font-size: ${baseSize * 1.25}px;" class="font-bold mb-4 text-center">📋 รายชื่อในวงล้อ</h2>
+                
+                <!-- ฟอร์มเ��ิ่มชื่อ -->
+                <div class="mb-4">
+                  <input type="text" id="newNameInput" placeholder="พิมพ์ชื่อใหม่..." style="background-color: rgba(255,255,255,0.2); color: ${textColor}; font-size: ${baseSize * 0.875}px; font-family: ${customFont}, ${baseFontStack}; border: 2px solid ${buttonColor};" class="w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-opacity-50">
+                  <button id="addNameBtn" style="background-color: ${buttonColor}; font-size: ${baseSize * 0.875}px; font-family: ${customFont}, ${baseFontStack};" class="w-full mt-2 px-4 py-2 rounded-lg font-semibold transition-all hover:opacity-90">
+                    ➕ เพิ่มชื่อ
+                  </button>
+                </div>
+
+                <div style="font-size: ${baseSize * 0.875}px;" class="mb-3 text-center opacity-75">
+                  จำนวน: <span id="namesCount" class="font-bold">${names.length}</span> คน
+                </div>
+
+                <!-- รายการชื่อ -->
+                <div id="namesList" style="font-size: ${baseSize * 0.875}px;" class="space-y-2 max-h-96 overflow-y-auto">
+                </div>
+              </div>
             </div>
-            
-            <canvas id="wheelCanvas" width="500" height="500" class="drop-shadow-2xl"></canvas>
+
+            <!-- วงล้อ -->
+            <div class="flex flex-col items-center flex-shrink-0">
+              <div class="relative mb-6">
+                <div class="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
+                  <div style="border-left: 20px solid transparent; border-right: 20px solid transparent; border-top: 30px solid ${textColor};"></div>
+                </div>
+                
+                <canvas id="wheelCanvas" width="500" height="500" class="drop-shadow-2xl">
+              </div>
+
+              <button id="spinBtn" style="background-color: ${buttonColor}; font-size: ${baseSize * 1.25}px; font-family: ${customFont}, ${baseFontStack};" class="px-10 py-4 rounded-full font-bold transition-all hover:scale-105 hover:opacity-90 shadow-xl mb-6">
+                🎯 ${spinButtonText}
+              </button>
+
+              <div id="winnerDisplay" style="background-color: ${winnerBgColor}; font-size: ${baseSize * 1.5}px; font-family: ${customFont}, ${baseFontStack}; color: ${textColor};" class="hidden px-8 py-6 rounded-2xl shadow-2xl text-center min-w-[300px]">
+                <div style="font-size: ${baseSize}px;" class="mb-2 opacity-90">${winnerLabel}</div>
+                <div id="winnerName" class="font-bold text-3xl">🎊</div>
+              </div>
+            </div>
           </div>
 
-          <button id="spinBtn" style="background-color: ${buttonColor}; font-size: ${baseSize * 1.25}px; font-family: ${customFont}, ${baseFontStack};" class="px-10 py-4 rounded-full font-bold transition-all hover:scale-105 hover:opacity-90 shadow-xl mb-6">
-            🎯 ${spinButtonText}
-          </button>
-
-          <div id="winnerDisplay" style="background-color: ${winnerBgColor}; font-size: ${baseSize * 1.5}px; font-family: ${customFont}, ${baseFontStack}; color: ${textColor};" class="hidden px-8 py-6 rounded-2xl shadow-2xl text-center min-w-[300px] mb-8">
-            <div style="font-size: ${baseSize}px;" class="mb-2 opacity-90">${winnerLabel}</div>
-            <div id="winnerName" class="font-bold text-3xl">🎊</div>
-          </div>
-
-          <div id="reportSection" class="w-full max-w-2xl">
+          <div id="reportSection" class="w-full max-w-6xl">
             <div style="background-color: rgba(255,255,255,0.1); font-family: ${customFont}, ${baseFontStack}; color: ${textColor};" class="rounded-2xl p-6 shadow-xl">
-              <h2 style="font-size: ${baseSize * 1.5}px;" class="font-bold mb-4 text-center">📊 รายงานผลการสุ่ม</h2>
+              <h2 style="font-size: ${baseSize * 1.5}px;" class="font-bold mb-4 text-center">�� รายงานผลการสุ่ม</h2>
               <div style="font-size: ${baseSize * 0.875}px;" class="mb-4 text-center opacity-75">
                 <span>เหลือในวงล้อ: <span id="remainingCount" class="font-bold">${names.length}</span></span>
                 <span class="mx-2">|</span>
@@ -122,6 +154,59 @@
       drawWheel(config);
       setupEventListeners(config);
       updateReport(config);
+      updateNamesList(config);
+    }
+
+    function updateNamesList(config) {
+      const customFont = config.font_family || defaultConfig.font_family;
+      const baseFontStack = 'Arial, sans-serif';
+      const baseSize = config.font_size || defaultConfig.font_size;
+      const textColor = config.text_color || defaultConfig.text_color;
+      const buttonColor = config.button_color || defaultConfig.button_color;
+
+      const namesCount = document.getElementById('namesCount');
+      if (namesCount) {
+        namesCount.textContent = names.length;
+      }
+
+      const namesList = document.getElementById('namesList');
+      if (!namesList) return;
+
+      if (names.length === 0) {
+        namesList.innerHTML = '<div class="text-center opacity-50 py-4">ไม่มีรายชื่อ</div>';
+      } else {
+        namesList.innerHTML = names.map((name, index) => `
+          <div style="background-color: rgba(255,255,255,0.15); font-family: ${customFont}, ${baseFontStack}; color: ${textColor};" class="px-3 py-2 rounded-lg flex items-center gap-2">
+            <input type="text" value="${name}" data-index="${index}" class="name-edit-input flex-1 bg-transparent border-none focus:outline-none" style="color: ${textColor}; font-family: ${customFont}, ${baseFontStack};">
+            <button class="delete-name-btn opacity-70 hover:opacity-100 transition-opacity" data-index="${index}" style="font-size: ${baseSize * 1.125}px;">🗑️</button>
+          </div>
+        `).join('');
+
+        // เพิ่ม event listeners สำหรับแก้ไขและลบ
+        document.querySelectorAll('.name-edit-input').forEach(input => {
+          input.addEventListener('change', (e) => {
+            const index = parseInt(e.target.dataset.index);
+            const newName = e.target.value.trim();
+            if (newName && newName !== names[index]) {
+              names[index] = newName;
+              allNames = [...names, ...winners];
+              drawWheel(config);
+            } else if (!newName) {
+              e.target.value = names[index];
+            }
+          });
+        });
+
+        document.querySelectorAll('.delete-name-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const index = parseInt(e.currentTarget.dataset.index);
+            names.splice(index, 1);
+            allNames = [...names, ...winners];
+            updateNamesList(config);
+            drawWheel(config);
+          });
+        });
+      }
     }
 
     function updateReport(config) {
@@ -206,12 +291,49 @@
       const spinBtn = document.getElementById('spinBtn');
       const importBtn = document.getElementById('importBtn');
       const resetBtn = document.getElementById('resetBtn');
+      const soundToggle = document.getElementById('soundToggle');
       const fileInput = document.getElementById('fileInput');
+      const addNameBtn = document.getElementById('addNameBtn');
+      const newNameInput = document.getElementById('newNameInput');
 
       spinBtn.onclick = () => spinWheel(config);
       importBtn.onclick = () => fileInput.click();
       resetBtn.onclick = () => resetWheel(config);
+      soundToggle.onclick = () => toggleSound(config);
       fileInput.onchange = (e) => handleFileImport(e, config);
+      addNameBtn.onclick = () => addNewName(config);
+      newNameInput.onkeypress = (e) => {
+        if (e.key === 'Enter') {
+          addNewName(config);
+        }
+      };
+    }
+
+    function addNewName(config) {
+      const newNameInput = document.getElementById('newNameInput');
+      const newName = newNameInput.value.trim();
+      
+      if (newName) {
+        names.push(newName);
+        allNames = [...names, ...winners];
+        newNameInput.value = '';
+        updateNamesList(config);
+        drawWheel(config);
+      }
+    }
+
+    function toggleSound(config) {
+      isSoundEnabled = !isSoundEnabled;
+      const soundToggle = document.getElementById('soundToggle');
+      const buttonColor = config.button_color || defaultConfig.button_color;
+      
+      if (isSoundEnabled) {
+        soundToggle.textContent = '🔊 เปิ���เสียง';
+        soundToggle.style.backgroundColor = buttonColor;
+      } else {
+        soundToggle.textContent = '🔇 ปิดเสียง';
+        soundToggle.style.backgroundColor = '#6b7280';
+      }
     }
 
     function resetWheel(config) {
@@ -223,6 +345,7 @@
       document.getElementById('fileStatus').textContent = "";
       drawWheel(config);
       updateReport(config);
+      updateNamesList(config);
     }
 
     function spinWheel(config) {
@@ -272,8 +395,12 @@
           currentRotation = 0;
           drawWheel(config);
           updateReport(config);
+          updateNamesList(config);
           showWinner(config);
           createConfetti();
+          if (isSoundEnabled) {
+            speakWinner(winner);
+          }
         }
       }
 
@@ -303,6 +430,17 @@
 
           setTimeout(() => confetti.remove(), 3000);
         }, i * 30);
+      }
+    }
+
+    function speakWinner(name) {
+      if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(name);
+        utterance.lang = 'th-TH';
+        utterance.rate = 0.9;
+        utterance.pitch = 1.1;
+        utterance.volume = 1;
+        window.speechSynthesis.speak(utterance);
       }
     }
 
@@ -337,8 +475,9 @@
             currentRotation = 0;
             drawWheel(config);
             updateReport(config);
+            updateNamesList(config);
           } else {
-            fileStatus.textContent = "❌ ไม่พบรายชื่อในไฟล์";
+            fileStatus.textContent = "❌ ไม่พบรายชื่อในไ��ล์";
             fileStatus.style.color = '#ef4444';
           }
         } catch (error) {
@@ -422,8 +561,20 @@
         resetBtn.style.color = textColor;
       }
 
+      const soundToggle = document.getElementById('soundToggle');
+      if (soundToggle) {
+        soundToggle.style.fontSize = `${baseSize}px`;
+        soundToggle.style.fontFamily = `${customFont}, ${baseFontStack}`;
+        if (isSoundEnabled) {
+          soundToggle.style.backgroundColor = buttonColor;
+        } else {
+          soundToggle.style.backgroundColor = '#6b7280';
+        }
+      }
+
       drawWheel(config);
       updateReport(config);
+      updateNamesList(config);
     }
 
     if (window.elementSdk) {
@@ -495,5 +646,5 @@
 
     render(defaultConfig);
   </script>
- <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9b586f98f24ece89',t:'MTc2NzAwMjI3NS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9b589e1b0426fd93',t:'MTc2NzAwNDE3OS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
