@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="th" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>วงล้อสุ่มชื่อ</title>
+  <script src="/_sdk/element_sdk.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      box-sizing: border-box;
+    }
+    
+    @keyframes confetti {
+      0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(100%) rotate(360deg); opacity: 0; }
+    }
+    
+    .confetti {
+      position: fixed;
+      width: 10px;
+      height: 10px;
+      z-index: 1000;
+      animation: confetti 3s ease-out forwards;
+    }
+  </style>
+  <style>@view-transition { navigation: auto; }</style>
+  <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
+ </head>
+ <body class="h-full">
+  <div id="app" class="h-full w-full overflow-auto"></div>
+  <script>
+    const defaultConfig = {
+      page_title: "วงล้อสุ่มรางวัล อภิมหายิ่งใหญ่สุดอลังการ สำหรับบุคลากร วอศ.101",
+      spin_button_text: "หมุนวงล้อสิจ๊ะ",
+      winner_label: "ผู้โชคดี",
+      import_button_text: "นำเข้าไฟล์ Excel",
+      background_color: "#1e293b",
+      wheel_color: "#f59e0b",
+      winner_bg_color: "#10b981",
+      button_color: "#3b82f6",
+      text_color: "#ffffff",
+      font_family: "Kanit",
+      font_size: 16
+    };
+
+    let names = ["บุคคลที่ 1", "บุคคลที่ 2", "บุคคลที่ 3", "บุคคลที่ 4", "บุคคลที่ 5", "บุคคลที่ 6"];
+    let allNames = [...names];
+    let winners = [];
+    let isSpinning = false;
+    let currentRotation = 0;
+    let winner = "";
+
+    function render(config) {
+      const customFont = config.font_family || defaultConfig.font_family;
+      const baseFontStack = 'Arial, sans-serif';
+      const baseSize = config.font_size || defaultConfig.font_size;
+      const backgroundColor = config.background_color || defaultConfig.background_color;
+      const wheelColor = config.wheel_color || defaultConfig.wheel_color;
+      const winnerBgColor = config.winner_bg_color || defaultConfig.winner_bg_color;
+      const buttonColor = config.button_color || defaultConfig.button_color;
+      const textColor = config.text_color || defaultConfig.text_color;
+      const pageTitle = config.page_title || defaultConfig.page_title;
+      const spinButtonText = config.spin_button_text || defaultConfig.spin_button_text;
+      const winnerLabel = config.winner_label || defaultConfig.winner_label;
+      const importButtonText = config.import_button_text || defaultConfig.import_button_text;
+
+      const app = document.getElementById('app');
+      app.style.fontFamily = `${customFont}, ${baseFontStack}`;
+      app.style.backgroundColor = backgroundColor;
+      app.style.color = textColor;
+      
+      app.innerHTML = `
+        <div class="min-h-full flex flex-col items-center justify-center p-8">
+          <h1 id="pageTitle" style="font-size: ${baseSize * 2}px; font-family: ${customFont}, ${baseFontStack}; color: ${textColor};" class="font-bold mb-8 text-center">${pageTitle}</h1>
+          
+          <div class="mb-8 flex gap-4 items-center">
+            <input type="file" id="fileInput" accept=".xls,.xlsx" class="hidden">
+            <button id="importBtn" style="background-color: ${buttonColor}; font-size: ${baseSize}px; font-family: ${customFont}, ${baseFontStack};" class="px-6 py-3 rounded-lg font-semibold transition-all hover:opacity-90 shadow-lg">
+              📁 ${importButtonText}
+            </button>
+            <button id="resetBtn" style="background-color: #ef4444; font-size: ${baseSize}px; font-family: ${customFont}, ${baseFontStack}; color: ${textColor};" class="px-6 py-3 rounded-lg font-semibold transition-all hover:opacity-90 shadow-lg">
+              🔄 รีเซต
+            </button>
+          </div>
+          <div id="fileStatus" style="font-size: ${baseSize * 0.875}px; font-family: ${customFont}, ${baseFontStack}; color: ${textColor};" class="mb-4 text-center"></div>
+
+          <div class="relative mb-8">
+            <div class="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
+              <div style="border-left: 20px solid transparent; border-right: 20px solid transparent; border-top: 30px solid ${textColor};"></div>
+            </div>
+            
+            <canvas id="wheelCanvas" width="500" height="500" class="drop-shadow-2xl"></canvas>
+          </div>
+
+          <button id="spinBtn" style="background-color: ${buttonColor}; font-size: ${baseSize * 1.25}px; font-family: ${customFont}, ${baseFontStack};" class="px-10 py-4 rounded-full font-bold transition-all hover:scale-105 hover:opacity-90 shadow-xl mb-6">
+            🎯 ${spinButtonText}
+          </button>
+
+          <div id="winnerDisplay" style="background-color: ${winnerBgColor}; font-size: ${baseSize * 1.5}px; font-family: ${customFont}, ${baseFontStack}; color: ${textColor};" class="hidden px-8 py-6 rounded-2xl shadow-2xl text-center min-w-[300px] mb-8">
+            <div style="font-size: ${baseSize}px;" class="mb-2 opacity-90">${winnerLabel}</div>
+            <div id="winnerName" class="font-bold text-3xl">🎊</div>
+          </div>
+
+          <div id="reportSection" class="w-full max-w-2xl">
+            <div style="background-color: rgba(255,255,255,0.1); font-family: ${customFont}, ${baseFontStack}; color: ${textColor};" class="rounded-2xl p-6 shadow-xl">
+              <h2 style="font-size: ${baseSize * 1.5}px;" class="font-bold mb-4 text-center">📊 รายงานผลการสุ่ม</h2>
+              <div style="font-size: ${baseSize * 0.875}px;" class="mb-4 text-center opacity-75">
+                <span>เหลือในวงล้อ: <span id="remainingCount" class="font-bold">${names.length}</span></span>
+                <span class="mx-2">|</span>
+                <span>สุ่มแล้ว: <span id="winnersCount" class="font-bold">0</span></span>
+              </div>
+              <div id="winnersList" style="font-size: ${baseSize}px;" class="space-y-2 max-h-60 overflow-y-auto">
+                <div class="text-center opacity-50">ยังไม่มีการสุ่ม</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      drawWheel(config);
+      setupEventListeners(config);
+      updateReport(config);
+    }
+
+    function updateReport(config) {
+      const customFont = config.font_family || defaultConfig.font_family;
+      const baseFontStack = 'Arial, sans-serif';
+      const baseSize = config.font_size || defaultConfig.font_size;
+      const textColor = config.text_color || defaultConfig.text_color;
+
+      document.getElementById('remainingCount').textContent = names.length;
+      document.getElementById('winnersCount').textContent = winners.length;
+
+      const winnersList = document.getElementById('winnersList');
+      if (winners.length === 0) {
+        winnersList.innerHTML = '<div class="text-center opacity-50">ยังไม่มีการสุ่ม</div>';
+      } else {
+        winnersList.innerHTML = winners.map((w, i) => `
+          <div style="background-color: rgba(255,255,255,0.1); font-family: ${customFont}, ${baseFontStack}; color: ${textColor};" class="px-4 py-3 rounded-lg flex justify-between items-center">
+            <span><span class="opacity-75">ครั้งที่ ${i + 1}:</span> <span class="font-semibold">${w}</span></span>
+            <span class="text-2xl">🎉</span>
+          </div>
+        `).reverse().join('');
+      }
+    }
+
+    function drawWheel(config) {
+      const canvas = document.getElementById('wheelCanvas');
+      if (!canvas) return;
+      
+      const ctx = canvas.getContext('2d');
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      const radius = 200;
+      const wheelColor = config.wheel_color || defaultConfig.wheel_color;
+      const textColor = config.text_color || defaultConfig.text_color;
+      const customFont = config.font_family || defaultConfig.font_family;
+      const baseSize = config.font_size || defaultConfig.font_size;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const colors = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'];
+      const anglePerSlice = (2 * Math.PI) / names.length;
+
+      ctx.save();
+      ctx.translate(centerX, centerY);
+      ctx.rotate((currentRotation * Math.PI) / 180);
+
+      names.forEach((name, i) => {
+        const startAngle = i * anglePerSlice;
+        const endAngle = startAngle + anglePerSlice;
+
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, radius, startAngle, endAngle);
+        ctx.closePath();
+        ctx.fillStyle = colors[i % colors.length];
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        ctx.save();
+        ctx.rotate(startAngle + anglePerSlice / 2);
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `bold ${baseSize * 1.125}px ${customFont}, Arial, sans-serif`;
+        ctx.fillText(name, radius * 0.65, 0);
+        ctx.restore();
+      });
+
+      ctx.restore();
+
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, 30, 0, 2 * Math.PI);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+      ctx.strokeStyle = wheelColor;
+      ctx.lineWidth = 5;
+      ctx.stroke();
+    }
+
+    function setupEventListeners(config) {
+      const spinBtn = document.getElementById('spinBtn');
+      const importBtn = document.getElementById('importBtn');
+      const resetBtn = document.getElementById('resetBtn');
+      const fileInput = document.getElementById('fileInput');
+
+      spinBtn.onclick = () => spinWheel(config);
+      importBtn.onclick = () => fileInput.click();
+      resetBtn.onclick = () => resetWheel(config);
+      fileInput.onchange = (e) => handleFileImport(e, config);
+    }
+
+    function resetWheel(config) {
+      names = [...allNames];
+      winners = [];
+      currentRotation = 0;
+      winner = "";
+      document.getElementById('winnerDisplay').classList.add('hidden');
+      document.getElementById('fileStatus').textContent = "";
+      drawWheel(config);
+      updateReport(config);
+    }
+
+    function spinWheel(config) {
+      if (isSpinning || names.length === 0) {
+        if (names.length === 0) {
+          const fileStatus = document.getElementById('fileStatus');
+          fileStatus.textContent = "⚠️ ไม่มีรายชื่อในวงล้อแล้ว กรุณารีเซต";
+          fileStatus.style.color = '#f59e0b';
+        }
+        return;
+      }
+
+      isSpinning = true;
+      winner = "";
+      document.getElementById('winnerDisplay').classList.add('hidden');
+
+      const spinDuration = 4000;
+      const extraRotations = 5;
+      const randomAngle = Math.random() * 360;
+      const totalRotation = extraRotations * 360 + randomAngle;
+
+      const startTime = Date.now();
+      const startRotation = currentRotation;
+
+      function animate() {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / spinDuration, 1);
+        const easeOut = 1 - Math.pow(1 - progress, 3);
+
+        currentRotation = startRotation + totalRotation * easeOut;
+        drawWheel(config);
+
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        } else {
+          isSpinning = false;
+          currentRotation = currentRotation % 360;
+          
+          const anglePerSlice = 360 / names.length;
+          const adjustedAngle = (360 - (currentRotation % 360)) % 360;
+          const winnerIndex = Math.floor(adjustedAngle / anglePerSlice) % names.length;
+          winner = names[winnerIndex];
+
+          winners.push(winner);
+          names.splice(winnerIndex, 1);
+
+          currentRotation = 0;
+          drawWheel(config);
+          updateReport(config);
+          showWinner(config);
+          createConfetti();
+        }
+      }
+
+      animate();
+    }
+
+    function showWinner(config) {
+      const winnerDisplay = document.getElementById('winnerDisplay');
+      const winnerName = document.getElementById('winnerName');
+      
+      winnerName.textContent = winner;
+      winnerDisplay.classList.remove('hidden');
+    }
+
+    function createConfetti() {
+      const colors = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'];
+      
+      for (let i = 0; i < 50; i++) {
+        setTimeout(() => {
+          const confetti = document.createElement('div');
+          confetti.className = 'confetti';
+          confetti.style.left = Math.random() * 100 + '%';
+          confetti.style.top = '-10px';
+          confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+          confetti.style.animationDelay = Math.random() * 0.5 + 's';
+          document.body.appendChild(confetti);
+
+          setTimeout(() => confetti.remove(), 3000);
+        }, i * 30);
+      }
+    }
+
+    function handleFileImport(event, config) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const fileStatus = document.getElementById('fileStatus');
+      fileStatus.textContent = "กำลังโหลดไฟล์...";
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+
+          const newNames = [];
+          jsonData.forEach(row => {
+            if (row[0] && String(row[0]).trim()) {
+              newNames.push(String(row[0]).trim());
+            }
+          });
+
+          if (newNames.length > 0) {
+            names = newNames;
+            allNames = [...newNames];
+            winners = [];
+            fileStatus.textContent = `✅ นำเข้าสำเร็จ: ${names.length} รายชื่อ`;
+            fileStatus.style.color = config.winner_bg_color || defaultConfig.winner_bg_color;
+            currentRotation = 0;
+            drawWheel(config);
+            updateReport(config);
+          } else {
+            fileStatus.textContent = "❌ ไม่พบรายชื่อในไฟล์";
+            fileStatus.style.color = '#ef4444';
+          }
+        } catch (error) {
+          fileStatus.textContent = "❌ เกิดข้อผิดพลาดในการอ่านไฟล์";
+          fileStatus.style.color = '#ef4444';
+        }
+      };
+
+      reader.readAsArrayBuffer(file);
+    }
+
+    async function onConfigChange(config) {
+      const customFont = config.font_family || defaultConfig.font_family;
+      const baseFontStack = 'Arial, sans-serif';
+      const baseSize = config.font_size || defaultConfig.font_size;
+      const backgroundColor = config.background_color || defaultConfig.background_color;
+      const buttonColor = config.button_color || defaultConfig.button_color;
+      const textColor = config.text_color || defaultConfig.text_color;
+      const winnerBgColor = config.winner_bg_color || defaultConfig.winner_bg_color;
+      const pageTitle = config.page_title || defaultConfig.page_title;
+      const spinButtonText = config.spin_button_text || defaultConfig.spin_button_text;
+      const winnerLabel = config.winner_label || defaultConfig.winner_label;
+      const importButtonText = config.import_button_text || defaultConfig.import_button_text;
+
+      const app = document.getElementById('app');
+      if (app) {
+        app.style.fontFamily = `${customFont}, ${baseFontStack}`;
+        app.style.backgroundColor = backgroundColor;
+        app.style.color = textColor;
+      }
+
+      const pageTitleEl = document.getElementById('pageTitle');
+      if (pageTitleEl) {
+        pageTitleEl.textContent = pageTitle;
+        pageTitleEl.style.fontSize = `${baseSize * 2}px`;
+        pageTitleEl.style.fontFamily = `${customFont}, ${baseFontStack}`;
+        pageTitleEl.style.color = textColor;
+      }
+
+      const importBtn = document.getElementById('importBtn');
+      if (importBtn) {
+        importBtn.textContent = `📁 ${importButtonText}`;
+        importBtn.style.backgroundColor = buttonColor;
+        importBtn.style.fontSize = `${baseSize}px`;
+        importBtn.style.fontFamily = `${customFont}, ${baseFontStack}`;
+      }
+
+      const fileStatus = document.getElementById('fileStatus');
+      if (fileStatus) {
+        fileStatus.style.fontSize = `${baseSize * 0.875}px`;
+        fileStatus.style.fontFamily = `${customFont}, ${baseFontStack}`;
+        fileStatus.style.color = textColor;
+      }
+
+      const spinBtn = document.getElementById('spinBtn');
+      if (spinBtn) {
+        spinBtn.textContent = `🎯 ${spinButtonText}`;
+        spinBtn.style.backgroundColor = buttonColor;
+        spinBtn.style.fontSize = `${baseSize * 1.25}px`;
+        spinBtn.style.fontFamily = `${customFont}, ${baseFontStack}`;
+      }
+
+      const winnerDisplay = document.getElementById('winnerDisplay');
+      if (winnerDisplay) {
+        winnerDisplay.style.backgroundColor = winnerBgColor;
+        winnerDisplay.style.fontSize = `${baseSize * 1.5}px`;
+        winnerDisplay.style.fontFamily = `${customFont}, ${baseFontStack}`;
+        winnerDisplay.style.color = textColor;
+        
+        const winnerLabelEl = winnerDisplay.querySelector('div:first-child');
+        if (winnerLabelEl) {
+          winnerLabelEl.textContent = winnerLabel;
+          winnerLabelEl.style.fontSize = `${baseSize}px`;
+        }
+      }
+
+      const resetBtn = document.getElementById('resetBtn');
+      if (resetBtn) {
+        resetBtn.style.fontSize = `${baseSize}px`;
+        resetBtn.style.fontFamily = `${customFont}, ${baseFontStack}`;
+        resetBtn.style.color = textColor;
+      }
+
+      drawWheel(config);
+      updateReport(config);
+    }
+
+    if (window.elementSdk) {
+      window.elementSdk.init({
+        defaultConfig,
+        onConfigChange,
+        mapToCapabilities: (config) => ({
+          recolorables: [
+            {
+              get: () => config.background_color || defaultConfig.background_color,
+              set: (value) => {
+                config.background_color = value;
+                window.elementSdk.setConfig({ background_color: value });
+              }
+            },
+            {
+              get: () => config.wheel_color || defaultConfig.wheel_color,
+              set: (value) => {
+                config.wheel_color = value;
+                window.elementSdk.setConfig({ wheel_color: value });
+              }
+            },
+            {
+              get: () => config.winner_bg_color || defaultConfig.winner_bg_color,
+              set: (value) => {
+                config.winner_bg_color = value;
+                window.elementSdk.setConfig({ winner_bg_color: value });
+              }
+            },
+            {
+              get: () => config.button_color || defaultConfig.button_color,
+              set: (value) => {
+                config.button_color = value;
+                window.elementSdk.setConfig({ button_color: value });
+              }
+            },
+            {
+              get: () => config.text_color || defaultConfig.text_color,
+              set: (value) => {
+                config.text_color = value;
+                window.elementSdk.setConfig({ text_color: value });
+              }
+            }
+          ],
+          borderables: [],
+          fontEditable: {
+            get: () => config.font_family || defaultConfig.font_family,
+            set: (value) => {
+              config.font_family = value;
+              window.elementSdk.setConfig({ font_family: value });
+            }
+          },
+          fontSizeable: {
+            get: () => config.font_size || defaultConfig.font_size,
+            set: (value) => {
+              config.font_size = value;
+              window.elementSdk.setConfig({ font_size: value });
+            }
+          }
+        }),
+        mapToEditPanelValues: (config) => new Map([
+          ['page_title', config.page_title || defaultConfig.page_title],
+          ['spin_button_text', config.spin_button_text || defaultConfig.spin_button_text],
+          ['winner_label', config.winner_label || defaultConfig.winner_label],
+          ['import_button_text', config.import_button_text || defaultConfig.import_button_text]
+        ])
+      });
+    }
+
+    render(defaultConfig);
+  </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9b586f98f24ece89',t:'MTc2NzAwMjI3NS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
