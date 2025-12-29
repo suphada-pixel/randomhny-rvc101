@@ -3,7 +3,7 @@
  <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>วงล้อสุ่มชื่อ</title>
+  <title>วงล้อสุ่มชื่อผู้โชคดี โดย ครูตาลคนสวย</title>
   <script src="/_sdk/element_sdk.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
@@ -32,8 +32,8 @@
   <div id="app" class="h-full w-full overflow-auto"></div>
   <script>
     const defaultConfig = {
-      page_title: "วงล้อสุ่มรางวัล",
-      spin_button_text: "หมุนว���ล��อ",
+      page_title: "วงล้อสุ่มรางวัลอภิมหาอลังการ ของบุคลากร วอศ.101 (ผอ สั่งให้ทำตอน16.00 เอา 18.00) HNY2026 BY KruTarn",
+      spin_button_text: "หมุนวงล้อสิจ๊ะ",
       winner_label: "ผู้โชคดี",
       import_button_text: "นำเข้าไฟล์ Excel",
       background_color: "#1e293b",
@@ -45,7 +45,7 @@
       font_size: 16
     };
 
-    let names = ["บุคคลที่ 1", "บุคคลที่ 2", "บุคคลที่ 3", "บุคคลที่ 4", "บุคคลที่ 5", "บุคคลที่ 6"];
+    let names = ["ครูตาล 1", "ครูตาล 2", "ครูตาล  3", "ครูตาล  4", "ครูตาล 5", "ครูตาล 6"];
     let allNames = [...names];
     let winners = [];
     let isSpinning = false;
@@ -328,10 +328,10 @@
       const buttonColor = config.button_color || defaultConfig.button_color;
       
       if (isSoundEnabled) {
-        soundToggle.textContent = '🔊 เปิ���เสียง';
+        soundToggle.textContent = '🔊 เปิดเสียง AI อ่านชื่อ';
         soundToggle.style.backgroundColor = buttonColor;
       } else {
-        soundToggle.textContent = '🔇 ปิดเสียง';
+        soundToggle.textContent = '🔇 ปิดเสียงหูดับ';
         soundToggle.style.backgroundColor = '#6b7280';
       }
     }
@@ -477,7 +477,7 @@
             updateReport(config);
             updateNamesList(config);
           } else {
-            fileStatus.textContent = "❌ ไม่พบรายชื่อในไ��ล์";
+            fileStatus.textContent = "❌ ไม่พบรายชื่อในไฟล์";
             fileStatus.style.color = '#ef4444';
           }
         } catch (error) {
